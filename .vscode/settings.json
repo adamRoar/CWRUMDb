@@ -1,0 +1,8 @@
+{
+    "java.project.sourcePaths": [
+        "."
+    ],
+    "java.project.referencedLibraries": [
+        "c:\\Program Files\\Microsoft JDBC DRIVER 11.2 for SQL Server\\sqljdbc_11.2\\enu\\mssql-jdbc-11.2.0.jre11.jar"
+    ]
+}
