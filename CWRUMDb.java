@@ -8,16 +8,16 @@ import java.util.Scanner;
 public class CWRUMDb {
 
     private static final String CONNECTION_URL = "jdbc:sqlserver://cxp-sql-02\\adr114;"
-            + "database=CwruMDb;"
-            + "user=cwrumdb;"
-            + "password=4321$#@!vorabaz;"
-            + "encrypt=true;"
-            + "trustServerCertificate=true;"
-            + "loginTimeout=15;";
+    + "database=CwruMDb;"
+    + "user=cwrumdb;"
+    + "password=4321$#@!vorabaz;"
+    + "encrypt=true;"
+    + "trustServerCertificate=true;"
+    + "loginTimeout=15;";
 
     public static void main(String[] args) {
         try (Connection connection = DriverManager.getConnection(CONNECTION_URL);
-                Scanner scanner = new Scanner(System.in)) {
+             Scanner scanner = new Scanner(System.in)) {
 
             boolean exit = false;
             while (!exit) {
@@ -31,6 +31,9 @@ public class CWRUMDb {
                         break;
                     case 2:
                         executeGetMostActiveUsers(connection);
+                        break;
+                    case 3:
+                        executeDeleteUserAccount(connection, scanner);
                         break;
                     case 0:
                         exit = true;
@@ -50,6 +53,7 @@ public class CWRUMDb {
         System.out.println("Menu:");
         System.out.println("1. Get User Reviews by Genre");
         System.out.println("2. Get Most Active Users");
+        System.out.println("3. Delete User Account");
         System.out.println("0. Exit");
         System.out.print("Enter your choice: ");
     }
@@ -99,4 +103,27 @@ public class CWRUMDb {
             }
         }
     }
+
+    private static void executeDeleteUserAccount(Connection connection, Scanner scanner) throws SQLException {
+        System.out.print("Enter username to delete: ");
+        String username = scanner.nextLine();
+    
+        String callDeleteUserAccount = "{ call dbo.DeleteUserAccount(?, ?) }"; 
+        try (CallableStatement statement = connection.prepareCall(callDeleteUserAccount)) {
+            statement.setString(1, username);
+            statement.registerOutParameter(2, java.sql.Types.INTEGER);
+        
+            statement.executeUpdate(); 
+        
+            int deletedUserId = statement.getInt(2); 
+            if (deletedUserId > 0) {
+                System.out.println("The user with the username " + username + " " + "with the id number" + " " + deletedUserId + " " + "has been deleted successfully.");
+            } else {
+                System.out.println("An error has occurred or no user was found with the specified username.");
+            }
+        }
+        
+    }
 }
+
+    
