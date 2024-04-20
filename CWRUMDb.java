@@ -3,6 +3,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.Scanner;
 
 public class CWRUMDb {
@@ -97,6 +98,18 @@ public class CWRUMDb {
                 System.out.println("Review Count: " + reviewCount);
                 System.out.println("---");
             }
+        }
+    }
+
+    private static boolean authenticateUser(Connection connection, String username, String password) throws SQLException {
+        String query = "{CALL authenticateUser(?, ?, ?)}";
+        try (CallableStatement statement = connection.prepareCall(query)) {
+            statement.setString(1, username);
+            statement.setString(2, password);
+            statement.registerOutParameter(3, Types.BIT);
+            statement.execute();
+            boolean authenticated = statement.getBoolean(3);
+            return authenticated;
         }
     }
 }
