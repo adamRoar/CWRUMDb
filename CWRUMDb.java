@@ -5,20 +5,22 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Scanner;
+import java.sql.Date;
+
 
 public class CWRUMDb {
 
     private static final String CONNECTION_URL = "jdbc:sqlserver://cxp-sql-02\\adr114;"
-            + "database=CwruMDb;"
-            + "user=cwrumdb;"
-            + "password=4321$#@!vorabaz;"
-            + "encrypt=true;"
-            + "trustServerCertificate=true;"
-            + "loginTimeout=15;";
+    + "database=CwruMDb;"
+    + "user=cwrumdb;"
+    + "password=4321$#@!vorabaz;"
+    + "encrypt=true;"
+    + "trustServerCertificate=true;"
+    + "loginTimeout=15;";
 
     public static void main(String[] args) {
         try (Connection connection = DriverManager.getConnection(CONNECTION_URL);
-                Scanner scanner = new Scanner(System.in)) {
+             Scanner scanner = new Scanner(System.in)) {
 
             boolean exit = false;
             while (!exit) {
@@ -33,6 +35,12 @@ public class CWRUMDb {
                     case 2:
                         executeGetMostActiveUsers(connection);
                         break;
+                    case 3:
+                        executeDeleteUserAccount(connection, scanner);
+                        break;
+                    case 4:
+                        executeTransferUserReview(connection, scanner);
+                        break;    
                     case 0:
                         exit = true;
                         break;
@@ -51,6 +59,8 @@ public class CWRUMDb {
         System.out.println("Menu:");
         System.out.println("1. Get User Reviews by Genre");
         System.out.println("2. Get Most Active Users");
+        System.out.println("3. Delete User Account");
+        System.out.println("4. Transfer User Review");
         System.out.println("0. Exit");
         System.out.print("Enter your choice: ");
     }
@@ -98,6 +108,70 @@ public class CWRUMDb {
                 System.out.println("Review Count: " + reviewCount);
                 System.out.println("---");
             }
+        }
+    }
+
+    private static void executeDeleteUserAccount(Connection connection, Scanner scanner) throws SQLException {
+        System.out.print("Enter username to delete: ");
+        String username = scanner.nextLine();
+    
+        String callGetUserDetails = "{call dbo.GetUserDetails(?)}";
+        try (CallableStatement getUserDetailsStmt = connection.prepareCall(callGetUserDetails)) {
+            getUserDetailsStmt.setString(1, username);
+            
+            try (ResultSet userDetailsResultSet = getUserDetailsStmt.executeQuery()) {
+                if (userDetailsResultSet.next()) {
+                    String email = userDetailsResultSet.getString("email");
+                    Date joinDate = userDetailsResultSet.getDate("join_date");
+    
+                    System.out.println("User Details:");
+                    System.out.println("Username: " + username);
+                    System.out.println("Email: " + email);
+                    System.out.println("Join Date: " + joinDate);
+                    System.out.print("Are you sure you want to delete this account? (yes/no): ");
+                    
+                    String confirmation = scanner.nextLine().trim().toLowerCase();
+                    if ("yes".equals(confirmation)) {
+                        String callDeleteUserAccount = "{call dbo.DeleteUserAccount(?, ?)}";
+                        try (CallableStatement deleteUserStmt = connection.prepareCall(callDeleteUserAccount)) {
+                            deleteUserStmt.setString(1, username);
+                            deleteUserStmt.registerOutParameter(2, java.sql.Types.INTEGER);
+
+                            deleteUserStmt.execute();
+                            int deletedUserId = deleteUserStmt.getInt(2);
+                            
+                            if (deletedUserId > 0) System.out.println("User deleted successfully. User ID: " + deletedUserId);
+                            else System.out.println("Failed to delete user.");
+                        }
+                    } else System.out.println("Deletion cancelled by user.");
+                    
+                } else System.out.println("No user found with the username: " + username);
+                
+            }
+        }
+    }
+
+    private static void executeTransferUserReview(Connection connection, Scanner scanner) throws SQLException {
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+
+        System.out.print("Enter original movie title: ");
+        String originalMovieTitle = scanner.nextLine();
+
+        System.out.print("Enter new movie title: ");
+        String newMovieTitle = scanner.nextLine();
+
+        String callTransferUserReview = "{call TransferUserReview(?, ?, ?, ?)}";
+        try (CallableStatement statement = connection.prepareCall(callTransferUserReview)) {
+            statement.setString(1, username);
+            statement.setString(2, originalMovieTitle);
+            statement.setString(3, newMovieTitle);
+            statement.registerOutParameter(4, java.sql.Types.NVARCHAR);
+
+            statement.execute();
+
+            String resultMessage = statement.getString(4);
+            System.out.println("Result: " + resultMessage);
         }
     }
 
