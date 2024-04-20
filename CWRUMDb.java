@@ -176,7 +176,7 @@ public class CWRUMDb {
     }
 
     private static boolean authenticateUser(Connection connection, String username, String password) throws SQLException {
-        String query = "{CALL authenticateUser(?, ?, ?)}";
+        String query = "{CALL AuthenticateUser(?, ?, ?)}";
         try (CallableStatement statement = connection.prepareCall(query)) {
             statement.setString(1, username);
             statement.setString(2, password);
