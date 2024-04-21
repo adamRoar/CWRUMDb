@@ -40,7 +40,12 @@ public class CWRUMDb {
                         break;
                     case 4:
                         executeTransferUserReview(connection, scanner);
-                        break;    
+                        break;
+                    case 5:
+                        executeListMoviesByDirector(connection, scanner);  
+                        break;
+                    case 6:
+                        executeInsertReview(connection, scanner);  
                     case 0:
                         exit = true;
                         break;
@@ -61,8 +66,97 @@ public class CWRUMDb {
         System.out.println("2. Get Most Active Users");
         System.out.println("3. Delete User Account");
         System.out.println("4. Transfer User Review");
+        System.out.println("5. List Movies by Director");
+        System.out.println("6. Insert Review");
         System.out.println("0. Exit");
         System.out.print("Enter your choice: ");
+    }
+
+    private static void executeListMoviesByDirector(Connection connection, Scanner scanner) {
+        System.out.print("Enter director first name: ");
+        String firstName = scanner.nextLine();
+
+        System.out.print("Enter director last name: ");
+        String lastName = scanner.nextLine();
+
+        String callListMoviesByDirector = "{call dbo.ListMoviesByDirector(?, ?)}";
+        try (CallableStatement statement = connection.prepareCall(callListMoviesByDirector)) {
+            statement.setString(1, firstName);
+            statement.setString(2, lastName);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                System.out.println("Movies by " + firstName + " " + lastName + ":");
+                while (resultSet.next()) {
+                    int movieId = resultSet.getInt("movie_id");
+                    String title = resultSet.getString("title");
+                    int runtime = resultSet.getInt("runtime");
+                    String plotSummary = resultSet.getString("plot_summary");
+
+                    System.out.println("ID: " + movieId);
+                    System.out.println("Title: " + title);
+                    System.out.println("Runtime: " + runtime);
+                    System.out.println("Plot summary : " + plotSummary);
+                    System.out.println("---");
+                }
+            }
+        }
+        catch (SQLException e) {
+            System.err.println("Error fetching list of movies by director: ");
+            System.out.println(e);
+        }
+    }
+
+    public static void executeInsertReview(Connection connection, Scanner scanner) throws SQLException {
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+
+        if (!authenticateUser(connection, username, password)) {
+            System.out.println("Authentication failed. Access denied.");
+            return; 
+        }
+
+        System.out.print("Enter review text: ");
+        String reviewText = scanner.nextLine();
+
+        boolean validRating = false;
+        int rating = 0;
+        while (!validRating) {
+            System.out.print("Enter rating (1, 2, 3, 4, or 5): ");
+            String ratingStr = scanner.nextLine();
+            try {
+                int ratingInt = Integer.parseInt(ratingStr);
+                if (ratingInt > 5 || ratingInt < 1) {
+                    throw new NumberFormatException();
+                }
+                rating = ratingInt;
+                validRating = true;
+
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid rating entered, please enter an integer between 1 and 5.");
+            }
+        }
+        
+        System.out.print("Enter movie title: ");
+        String movieTitle = scanner.nextLine();
+
+        String callInsertUserReview = "{call InsertUserReview(?, ?, ?, ?)}";
+
+        try (CallableStatement insertStatement = connection.prepareCall(callInsertUserReview)) {
+            insertStatement.setString(1, username);
+            insertStatement.setString(2, reviewText);
+            insertStatement.setInt(3, rating);
+            insertStatement.setString(4, movieTitle);
+
+            try {
+                insertStatement.execute();
+                System.out.println("Review inserted: " + rating + "/5 for " + movieTitle);
+            } catch (SQLException e) {
+                System.err.println("Movie not found, please try again.");
+            }
+        }
     }
 
     private static void executeGetUserReviewsByGenre(Connection connection, Scanner scanner) throws SQLException {
