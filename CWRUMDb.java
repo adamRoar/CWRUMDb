@@ -114,6 +114,14 @@ public class CWRUMDb {
     private static void executeDeleteUserAccount(Connection connection, Scanner scanner) throws SQLException {
         System.out.print("Enter username to delete: ");
         String username = scanner.nextLine();
+
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+
+        if (!authenticateUser(connection, username, password)) {
+            System.out.println("Authentication failed. Access denied.");
+            return; 
+        }
     
         String callGetUserDetails = "{call dbo.GetUserDetails(?)}";
         try (CallableStatement getUserDetailsStmt = connection.prepareCall(callGetUserDetails)) {
@@ -140,7 +148,10 @@ public class CWRUMDb {
                             deleteUserStmt.execute();
                             int deletedUserId = deleteUserStmt.getInt(2);
                             
-                            if (deletedUserId > 0) System.out.println("User deleted successfully. User ID: " + deletedUserId);
+                            if (deletedUserId > 0) {
+                                System.out.println("User deleted successfully. User ID: " + deletedUserId);
+                                verifyUserDeletion(connection, username);
+                            } 
                             else System.out.println("Failed to delete user.");
                         }
                     } else System.out.println("Deletion cancelled by user.");
@@ -151,9 +162,17 @@ public class CWRUMDb {
         }
     }
 
-    private static void executeTransferUserReview(Connection connection, Scanner scanner) throws SQLException {
+    public static void executeTransferUserReview(Connection connection, Scanner scanner) throws SQLException {
         System.out.print("Enter username: ");
         String username = scanner.nextLine();
+
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+
+        if (!authenticateUser(connection, username, password)) {
+            System.out.println("Authentication failed. Access denied.");
+            return; 
+        }
 
         System.out.print("Enter original movie title: ");
         String originalMovieTitle = scanner.nextLine();
@@ -162,16 +181,54 @@ public class CWRUMDb {
         String newMovieTitle = scanner.nextLine();
 
         String callTransferUserReview = "{call TransferUserReview(?, ?, ?, ?)}";
-        try (CallableStatement statement = connection.prepareCall(callTransferUserReview)) {
-            statement.setString(1, username);
-            statement.setString(2, originalMovieTitle);
-            statement.setString(3, newMovieTitle);
-            statement.registerOutParameter(4, java.sql.Types.NVARCHAR);
 
-            statement.execute();
+        try (CallableStatement transferStatement = connection.prepareCall(callTransferUserReview)) {
+            transferStatement.setString(1, username);
+            transferStatement.setString(2, originalMovieTitle);
+            transferStatement.setString(3, newMovieTitle);
+            transferStatement.registerOutParameter(4, java.sql.Types.NVARCHAR);
 
-            String resultMessage = statement.getString(4);
-            System.out.println("Result: " + resultMessage);
+            transferStatement.execute();
+
+            String transferResult = transferStatement.getString(4);
+            System.out.println("Transfer Result: " + transferResult);
+
+            if (transferResult.equals("Review transferred successfully.")) {
+                verifyReviewTransfer(connection, username, originalMovieTitle, newMovieTitle);
+            }
+
+        }
+    }
+    
+    private static void verifyReviewTransfer(Connection connection, String username, String originalMovieTitle, String newMovieTitle) throws SQLException {
+        String callVerifyReviewTransfer = "{call VerifyUserReviewTransfer(?, ?, ?, ?)}";
+
+        try (CallableStatement verifyStatement = connection.prepareCall(callVerifyReviewTransfer)) {
+            verifyStatement.setString(1, username);
+            verifyStatement.setString(2, originalMovieTitle);
+            verifyStatement.setString(3, newMovieTitle);
+
+            verifyStatement.registerOutParameter(4, java.sql.Types.NVARCHAR);
+
+            verifyStatement.execute();
+
+            String verifyResult = verifyStatement.getString(4);
+            System.out.println("Verification Result: " + verifyResult);
+        }
+    }
+
+    private static void verifyUserDeletion(Connection connection, String username) throws SQLException {
+        String storedProcedureCall = "{call VerifyUserDeletion(?, ?)}";
+
+        try (CallableStatement callableStatement = connection.prepareCall(storedProcedureCall)) {
+            callableStatement.setString(1, username);
+            callableStatement.registerOutParameter(2, java.sql.Types.NVARCHAR);
+
+            callableStatement.execute();
+
+            String resultMessage = callableStatement.getString(2);
+
+            System.out.println("Deletion Verification Result: " + resultMessage);
         }
     }
 
